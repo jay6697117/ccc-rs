@@ -1,0 +1,14 @@
+/Users/zhangjinhui/Desktop/ccc-rs/target/debug/deps/serde-ce15768bf5ee392c.d: /Users/zhangjinhui/.cargo/registry/src/mirrors.ustc.edu.cn-5857e57f01837ef8/serde-1.0.228/src/lib.rs /Users/zhangjinhui/.cargo/registry/src/mirrors.ustc.edu.cn-5857e57f01837ef8/serde-1.0.228/src/integer128.rs /Users/zhangjinhui/.cargo/registry/src/mirrors.ustc.edu.cn-5857e57f01837ef8/serde-1.0.228/src/private/mod.rs /Users/zhangjinhui/.cargo/registry/src/mirrors.ustc.edu.cn-5857e57f01837ef8/serde-1.0.228/src/private/de.rs /Users/zhangjinhui/.cargo/registry/src/mirrors.ustc.edu.cn-5857e57f01837ef8/serde-1.0.228/src/private/ser.rs /Users/zhangjinhui/Desktop/ccc-rs/target/debug/build/serde-7cb620e44cc644da/out/private.rs
+
+/Users/zhangjinhui/Desktop/ccc-rs/target/debug/deps/libserde-ce15768bf5ee392c.rlib: /Users/zhangjinhui/.cargo/registry/src/mirrors.ustc.edu.cn-5857e57f01837ef8/serde-1.0.228/src/lib.rs /Users/zhangjinhui/.cargo/registry/src/mirrors.ustc.edu.cn-5857e57f01837ef8/serde-1.0.228/src/integer128.rs /Users/zhangjinhui/.cargo/registry/src/mirrors.ustc.edu.cn-5857e57f01837ef8/serde-1.0.228/src/private/mod.rs /Users/zhangjinhui/.cargo/registry/src/mirrors.ustc.edu.cn-5857e57f01837ef8/serde-1.0.228/src/private/de.rs /Users/zhangjinhui/.cargo/registry/src/mirrors.ustc.edu.cn-5857e57f01837ef8/serde-1.0.228/src/private/ser.rs /Users/zhangjinhui/Desktop/ccc-rs/target/debug/build/serde-7cb620e44cc644da/out/private.rs
+
+/Users/zhangjinhui/Desktop/ccc-rs/target/debug/deps/libserde-ce15768bf5ee392c.rmeta: /Users/zhangjinhui/.cargo/registry/src/mirrors.ustc.edu.cn-5857e57f01837ef8/serde-1.0.228/src/lib.rs /Users/zhangjinhui/.cargo/registry/src/mirrors.ustc.edu.cn-5857e57f01837ef8/serde-1.0.228/src/integer128.rs /Users/zhangjinhui/.cargo/registry/src/mirrors.ustc.edu.cn-5857e57f01837ef8/serde-1.0.228/src/private/mod.rs /Users/zhangjinhui/.cargo/registry/src/mirrors.ustc.edu.cn-5857e57f01837ef8/serde-1.0.228/src/private/de.rs /Users/zhangjinhui/.cargo/registry/src/mirrors.ustc.edu.cn-5857e57f01837ef8/serde-1.0.228/src/private/ser.rs /Users/zhangjinhui/Desktop/ccc-rs/target/debug/build/serde-7cb620e44cc644da/out/private.rs
+
+/Users/zhangjinhui/.cargo/registry/src/mirrors.ustc.edu.cn-5857e57f01837ef8/serde-1.0.228/src/lib.rs:
+/Users/zhangjinhui/.cargo/registry/src/mirrors.ustc.edu.cn-5857e57f01837ef8/serde-1.0.228/src/integer128.rs:
+/Users/zhangjinhui/.cargo/registry/src/mirrors.ustc.edu.cn-5857e57f01837ef8/serde-1.0.228/src/private/mod.rs:
+/Users/zhangjinhui/.cargo/registry/src/mirrors.ustc.edu.cn-5857e57f01837ef8/serde-1.0.228/src/private/de.rs:
+/Users/zhangjinhui/.cargo/registry/src/mirrors.ustc.edu.cn-5857e57f01837ef8/serde-1.0.228/src/private/ser.rs:
+/Users/zhangjinhui/Desktop/ccc-rs/target/debug/build/serde-7cb620e44cc644da/out/private.rs:
+
+# env-dep:OUT_DIR=/Users/zhangjinhui/Desktop/ccc-rs/target/debug/build/serde-7cb620e44cc644da/out

@@ -1,0 +1,15 @@
+[package]
+name = "ccc-platform"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+ccc-core = { path = "../ccc-core" }
+thiserror.workspace = true
+serde.workspace = true
+regex-lite.workspace = true
+keyring.workspace = true
+
+[dev-dependencies]
+pretty_assertions.workspace = true
+tempfile.workspace = true

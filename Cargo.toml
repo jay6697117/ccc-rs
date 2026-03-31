@@ -1,0 +1,25 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/ccc-core",
+    "crates/ccc-platform",
+    "crates/ccc-vim",
+]
+
+[workspace.dependencies]
+# error handling
+thiserror = "2"
+anyhow = "1"
+# serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_yaml = "0.9"
+# async
+tokio = { version = "1", features = ["full"] }
+# platform
+keyring = "3"
+# regex
+regex-lite = "0.1"
+# testing
+pretty_assertions = "1"
+tempfile = "3"
