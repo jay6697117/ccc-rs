@@ -4,6 +4,7 @@ members = [
     "crates/ccc-core",
     "crates/ccc-platform",
     "crates/ccc-vim",
+    "crates/ccc-auth",
 ]
 
 [workspace.dependencies]
