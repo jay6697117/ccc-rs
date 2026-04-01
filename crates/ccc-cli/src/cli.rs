@@ -21,7 +21,7 @@ pub enum Commands {
 #[derive(Debug, Args, PartialEq, Eq, Default)]
 pub struct LoginArgs {}
 
-#[derive(Debug, Args, PartialEq, Eq)]
+#[derive(Debug, Args, PartialEq, Eq, Clone)]
 pub struct ChatArgs {
     #[arg(long)]
     pub model: Option<String>,

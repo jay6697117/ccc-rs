@@ -1,6 +1,7 @@
 pub mod cli;
 pub mod commands;
 pub mod error;
+pub mod runtime;
 pub mod stdin;
 
 use ccc_telemetry::{init_telemetry, TelemetryConfig, TelemetryFormat};
