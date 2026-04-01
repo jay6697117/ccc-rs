@@ -48,7 +48,7 @@ pub struct RequestMetadata {
 // ── Streaming events ──────────────────────────────────────────────────────────
 
 /// Top-level SSE event types emitted by the Anthropic streaming API.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum StreamEvent {
     MessageStart {
@@ -76,7 +76,7 @@ pub enum StreamEvent {
     },
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MessageStartPayload {
     pub id: String,
     pub model: String,
@@ -84,7 +84,7 @@ pub struct MessageStartPayload {
     pub stop_reason: Option<String>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ContentBlockStart {
     Text { text: String },
@@ -92,7 +92,7 @@ pub enum ContentBlockStart {
     ToolUse { id: String, name: String },
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Delta {
     TextDelta { text: String },
@@ -101,13 +101,13 @@ pub enum Delta {
     SignatureDelta { signature: String },
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MessageDeltaPayload {
     pub stop_reason: Option<String>,
     pub stop_sequence: Option<String>,
 }
 
-#[derive(Debug, Clone, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
 pub struct Usage {
     pub input_tokens: u32,
     pub output_tokens: u32,
@@ -117,12 +117,12 @@ pub struct Usage {
     pub cache_read_input_tokens: u32,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UsageDelta {
     pub output_tokens: Option<u32>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ApiErrorBody {
     #[serde(rename = "type")]
     pub kind: String,
@@ -138,4 +138,28 @@ pub struct MessagesResponse {
     pub content: Vec<serde_json::Value>,
     pub stop_reason: Option<String>,
     pub usage: Usage,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn stream_event_serializes_with_snake_case_type() {
+        let event = StreamEvent::MessageDelta {
+            delta: MessageDeltaPayload {
+                stop_reason: Some("end_turn".into()),
+                stop_sequence: None,
+            },
+            usage: Some(UsageDelta {
+                output_tokens: Some(4),
+            }),
+        };
+
+        let json = serde_json::to_string(&event).unwrap();
+
+        assert!(json.contains("\"type\":\"message_delta\""));
+        assert!(json.contains("\"stop_reason\":\"end_turn\""));
+        assert!(json.contains("\"output_tokens\":4"));
+    }
 }

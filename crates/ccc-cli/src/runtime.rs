@@ -74,7 +74,7 @@ mod tests {
 
     use ccc_core::{config::McpServerConfig, GlobalConfig, ProjectConfig};
 
-    use crate::cli::ChatArgs;
+    use crate::cli::{ChatArgs, OutputFormat};
     use crate::commands::config::ConfigSnapshot;
 
     use super::{build_chat_runtime, SessionMode};
@@ -104,6 +104,8 @@ mod tests {
                 model: None,
                 system_prompt: None,
                 print: false,
+                output_format: OutputFormat::Text,
+                include_partial_messages: false,
                 prompt: vec![],
             },
             &snapshot(ProjectConfig::default(), GlobalConfig::default()),
@@ -121,6 +123,8 @@ mod tests {
                 model: None,
                 system_prompt: None,
                 print: true,
+                output_format: OutputFormat::Text,
+                include_partial_messages: false,
                 prompt: vec![],
             },
             &snapshot(ProjectConfig::default(), GlobalConfig::default()),
@@ -156,6 +160,8 @@ mod tests {
                 model: None,
                 system_prompt: None,
                 print: false,
+                output_format: OutputFormat::Text,
+                include_partial_messages: false,
                 prompt: vec![],
             },
             &snapshot(project, global),

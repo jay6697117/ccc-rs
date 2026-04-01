@@ -179,7 +179,7 @@ impl Agent {
     /// Main loop to process a request and its subsequent tool-call iterations.
     pub async fn run<F>(&mut self, user_input: String, on_event: F) -> Result<()>
     where
-        F: FnMut(StreamEvent) + Send + Sync + 'static,
+        F: FnMut(StreamEvent),
     {
         self.add_message(Message {
             role: Role::User,
@@ -191,7 +191,7 @@ impl Agent {
 
     async fn process_loop<F>(&mut self, mut on_event: F) -> Result<()>
     where
-        F: FnMut(StreamEvent) + Send + Sync + 'static,
+        F: FnMut(StreamEvent),
     {
         loop {
             let mut stream = self.chat_stream().await?;

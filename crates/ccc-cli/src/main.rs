@@ -3,12 +3,11 @@ use clap::Parser;
 #[tokio::main]
 async fn main() -> std::process::ExitCode {
     let cli = ccc_cli::cli::Cli::parse();
+    let outcome = ccc_cli::run(cli).await;
 
-    match ccc_cli::run(cli).await {
-        Ok(()) => std::process::ExitCode::SUCCESS,
-        Err(err) => {
-            eprintln!("{err}");
-            std::process::ExitCode::from(err.exit_code())
-        }
+    if let Some(message) = outcome.stderr_message() {
+        eprintln!("{message}");
     }
+
+    std::process::ExitCode::from(outcome.exit_code())
 }

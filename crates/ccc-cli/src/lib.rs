@@ -1,27 +1,37 @@
 pub mod cli;
 pub mod commands;
 pub mod error;
+pub mod output;
 pub mod runtime;
 pub mod stdin;
 
 use ccc_telemetry::{init_telemetry, TelemetryConfig, TelemetryFormat};
 use cli::{Cli, Commands};
-use error::CliError;
+use error::{CliError, CliExit};
 
-pub async fn run(cli: Cli) -> Result<(), CliError> {
-    let telemetry_format = cli
-        .telemetry_format
-        .parse::<TelemetryFormat>()
-        .map_err(|err| CliError::new(err, 2))?;
+pub async fn run(cli: Cli) -> CliExit {
+    let telemetry_format = match cli.telemetry_format.parse::<TelemetryFormat>() {
+        Ok(format) => format,
+        Err(err) => return CliExit::error(err, 2),
+    };
     let telemetry = TelemetryConfig {
         format: telemetry_format,
         filter: cli.telemetry_filter.clone(),
     };
-    init_telemetry(&telemetry).map_err(|err| CliError::new(err, 1))?;
+    if let Err(err) = init_telemetry(&telemetry) {
+        return CliExit::error(err, 1);
+    }
 
     match cli.command {
-        Commands::Login(args) => commands::login::run(args).await,
+        Commands::Login(args) => finish(commands::login::run(args).await),
         Commands::Chat(args) => commands::chat::run(args).await,
-        Commands::Config(args) => commands::config::run(args).await,
+        Commands::Config(args) => finish(commands::config::run(args).await),
+    }
+}
+
+fn finish(result: Result<(), CliError>) -> CliExit {
+    match result {
+        Ok(()) => CliExit::success(),
+        Err(error) => error.into(),
     }
 }

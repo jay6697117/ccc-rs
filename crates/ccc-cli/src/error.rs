@@ -1,5 +1,42 @@
 use std::fmt::{Display, Formatter};
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CliExit {
+    exit_code: u8,
+    stderr_message: Option<String>,
+}
+
+impl CliExit {
+    pub fn success() -> Self {
+        Self {
+            exit_code: 0,
+            stderr_message: None,
+        }
+    }
+
+    pub fn reported(exit_code: u8) -> Self {
+        Self {
+            exit_code,
+            stderr_message: None,
+        }
+    }
+
+    pub fn error(message: impl Into<String>, exit_code: u8) -> Self {
+        Self {
+            exit_code,
+            stderr_message: Some(message.into()),
+        }
+    }
+
+    pub fn exit_code(&self) -> u8 {
+        self.exit_code
+    }
+
+    pub fn stderr_message(&self) -> Option<&str> {
+        self.stderr_message.as_deref()
+    }
+}
+
 #[derive(Debug)]
 pub struct CliError {
     message: String,
@@ -30,6 +67,12 @@ impl Display for CliError {
 }
 
 impl std::error::Error for CliError {}
+
+impl From<CliError> for CliExit {
+    fn from(error: CliError) -> Self {
+        Self::error(error.message, error.exit_code)
+    }
+}
 
 impl From<std::io::Error> for CliError {
     fn from(error: std::io::Error) -> Self {
