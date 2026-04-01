@@ -1,4 +1,5 @@
 pub mod runner;
+pub mod session_store;
 
 use anyhow::Result;
 use ccc_api::types::{MessagesRequest, RequestMessage, StreamEvent};
