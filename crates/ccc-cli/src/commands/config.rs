@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use serde::Serialize;
 use serde_json::Value;
 
-use ccc_core::{GlobalConfig, ProjectConfig};
+use ccc_core::{claude_config_dir, normalize_project_key, GlobalConfig, ProjectConfig};
 
 use crate::cli::{ConfigArgs, ConfigCommand};
 use crate::error::CliError;
@@ -38,9 +38,7 @@ pub async fn run(args: ConfigArgs) -> Result<(), CliError> {
 
 pub fn default_paths(cwd: PathBuf) -> ConfigPaths {
     let home = std::env::var("HOME").unwrap_or_else(|_| ".".into());
-    let config_dir = std::env::var("CLAUDE_CONFIG_DIR")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| PathBuf::from(home.clone()).join(".claude"));
+    let config_dir = claude_config_dir();
 
     ConfigPaths {
         cwd,
@@ -89,14 +87,6 @@ pub fn load_config_snapshot(_paths: &ConfigPaths) -> Result<ConfigSnapshot, CliE
         global_path,
     })
 }
-
-fn normalize_project_key(cwd: &Path) -> String {
-    fs::canonicalize(cwd)
-        .unwrap_or_else(|_| cwd.to_path_buf())
-        .to_string_lossy()
-        .replace('\\', "/")
-}
-
 fn read_json_file(path: &Path) -> Result<Option<Value>, CliError> {
     if !path.exists() {
         return Ok(None);

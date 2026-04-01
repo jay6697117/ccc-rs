@@ -11,18 +11,12 @@ use std::{
     path::PathBuf,
 };
 
+use ccc_core::claude_config_dir;
+
 use crate::types::SecureStorageData;
 use anyhow::{Context, Result};
 
 // ── Storage path ──────────────────────────────────────────────────────────────
-
-fn claude_config_dir() -> PathBuf {
-    if let Ok(v) = std::env::var("CLAUDE_CONFIG_DIR") {
-        return PathBuf::from(v);
-    }
-    let home = std::env::var("HOME").unwrap_or_else(|_| ".".into());
-    PathBuf::from(home).join(".claude")
-}
 
 fn credentials_path() -> PathBuf {
     claude_config_dir().join(".credentials.json")
