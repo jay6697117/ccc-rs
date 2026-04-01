@@ -91,6 +91,24 @@ ccc-vim       ──► ccc-core
 | 11 | `ccc-core` refinement | `2026-04-01-phase11-core-refinement.md` | config loading tests |
 | 12 | TUI + Agent integration | `2026-04-01-phase12-integration.md` | workspace integration tests |
 | 13 | `ccc-cli`, `ccc-telemetry`, `ccc-agent`, `ccc-tui` | `docs/superpowers/specs/2026-04-01-phase13-cli-telemetry-design.md` | `cargo test`, `ccc --help`, `ccc config show` |
+| 14 | `ccc-cli`, `ccc-agent`, `ccc-tui`, `ccc-core` | `docs/superpowers/specs/2026-04-01-phase14-session-mcp-design.md` | `cargo test`, session resume tests, `ccc config show` |
+
+## 当前运行时闭环
+
+Phase 14 完成后，chat 启动链路变为：
+
+1. `ccc-cli` 从 CLI 参数、`GlobalConfig`、`ProjectConfig` 装配 `ChatRuntimeConfig`
+2. 交互 `ccc chat`：
+   - 根据 `last_session_id` 从 `CLAUDE_CONFIG_DIR/sessions/<id>.json` 恢复 transcript
+   - 若 CLI 显式提供 `--model` / `--system-prompt`，覆盖持久化元数据
+   - 在启动前写回 `projects[project_key].last_session_id`
+   - 把 `initial_messages`、`session_id`、MCP 配置传给 `ccc-tui`
+3. `ccc-tui` 用同一条 `SessionRunner` 执行链启动，并在每轮成功 assistant 响应后落盘最新 transcript
+4. `ccc chat --print` 保持 ephemeral：
+   - 不读取 `last_session_id`
+   - 不写 session transcript
+   - 不更新项目配置
+5. MCP bootstrap 统一走 `ccc-agent::Agent::bootstrap_mcp_servers(...)`，遵守 `disabled > enabled > enable_all` precedence
 
 ## TS → Rust 文件映射（关键路径）
 
@@ -116,6 +134,8 @@ ccc-vim       ──► ccc-core
 | `ccc-mcp/src/client.rs` | `src/services/mcp/client.ts` |
 | `ccc-agent/src/lib.rs` | `src/coordinator/`, `src/QueryEngine.ts` |
 | `ccc-agent/src/runner.rs` | `src/query.ts`, `src/screens/REPL.tsx` |
+| `ccc-agent/src/session_store.rs` | `src/utils/state.ts`, `src/utils/config.ts` |
 | `ccc-tui/src/app.rs` | `src/ink/ink.tsx`, `src/ink/root.ts` |
 | `ccc-tui/src/events.rs` | `src/ink/hooks/use-input.ts` |
 | `ccc-cli/src/main.rs` | `src/main.tsx` |
+| `ccc-cli/src/runtime.rs` | `src/utils/config.ts`, `src/main.tsx` |
