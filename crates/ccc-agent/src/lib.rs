@@ -1,3 +1,5 @@
+pub mod runner;
+
 use anyhow::Result;
 use ccc_api::types::{MessagesRequest, RequestMessage, StreamEvent};
 use ccc_api::AnthropicClient;
@@ -8,6 +10,8 @@ use ccc_tools::ToolRegistry;
 use futures::StreamExt;
 use std::sync::Arc;
 use tokio::sync::Mutex;
+
+pub use runner::{latest_assistant_text, RunSummary, SessionRunner};
 
 /// Core agent for managing conversations and model interaction.
 pub struct Agent {

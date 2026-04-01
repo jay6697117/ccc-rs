@@ -7,6 +7,7 @@ members = [
     "crates/ccc-auth",
     "crates/ccc-api",
     "crates/ccc-tools", "crates/ccc-mcp", "crates/ccc-agent", "crates/ccc-tui",
+    "crates/ccc-telemetry", "crates/ccc-cli",
 ]
 
 [workspace.dependencies]
@@ -26,3 +27,6 @@ regex-lite = "0.1"
 # testing
 pretty_assertions = "1"
 tempfile = "3"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt", "json"] }
+clap = { version = "4", features = ["derive"] }

@@ -1,4 +1,5 @@
-use ccc_agent::Agent;
+use anyhow::Result;
+use ccc_agent::SessionRunner;
 use ccc_core::types::Message;
 use ccc_vim::VimState;
 use std::sync::Arc;
@@ -13,6 +14,21 @@ pub enum Focus {
 }
 
 /// TUI Application state.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AppConfig {
+    pub model: String,
+    pub system_prompt: Option<String>,
+}
+
+impl Default for AppConfig {
+    fn default() -> Self {
+        Self {
+            model: "claude-opus-4-6".into(),
+            system_prompt: None,
+        }
+    }
+}
+
 pub struct App {
     pub messages: Arc<Mutex<Vec<Message>>>,
     pub input: String,
@@ -21,17 +37,14 @@ pub struct App {
     pub vim: VimState,
     pub vim_persistent: ccc_vim::types::PersistentState,
     pub should_quit: bool,
-    pub agent: Arc<Mutex<Agent>>,
+    pub runner: Arc<Mutex<SessionRunner>>,
 }
 
 impl App {
-    pub fn new() -> Self {
-        let agent = Agent::new("claude-opus-4-6").expect("Failed to create agent");
+    pub fn new(config: AppConfig) -> Result<Self> {
+        let runner = SessionRunner::new(config.model, config.system_prompt)?;
 
-        // TODO: Load from ~/.claude/ccc-rs.toml
-        // For now, let's try to add a default MCP if it exists or just leave it empty
-
-        Self {
+        Ok(Self {
             messages: Arc::new(Mutex::new(Vec::new())),
             input: String::new(),
             cursor_pos: 0,
@@ -39,7 +52,23 @@ impl App {
             vim: VimState::default(),
             vim_persistent: ccc_vim::types::PersistentState::default(),
             should_quit: false,
-            agent: Arc::new(Mutex::new(agent)),
-        }
+            runner: Arc::new(Mutex::new(runner)),
+        })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn app_uses_custom_model() {
+        let app = App::new(AppConfig {
+            model: "claude-test-model".into(),
+            system_prompt: None,
+        })
+        .unwrap();
+
+        assert!(app.messages.try_lock().unwrap().is_empty());
     }
 }

@@ -11,6 +11,7 @@ pub struct GlobalConfig {
     pub mcps_agreed_to_terms: bool,
     pub auto_updater_disabled: bool,
     pub mcp_servers: HashMap<String, McpServerConfig>,
+    pub projects: HashMap<String, ProjectConfig>,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -84,5 +85,25 @@ mod tests {
         let json = r#"{"hasCompletedOnboarding":true,"unknownFutureField":42}"#;
         let cfg: GlobalConfig = serde_json::from_str(json).unwrap();
         assert!(cfg.has_completed_onboarding);
+    }
+
+    #[test]
+    fn global_config_preserves_projects_map() {
+        let mut cfg = GlobalConfig::default();
+        cfg.projects.insert(
+            "/tmp/demo".into(),
+            ProjectConfig {
+                allowed_tools: vec!["bash".into()],
+                ..ProjectConfig::default()
+            },
+        );
+
+        let json = serde_json::to_string(&cfg).unwrap();
+        let back: GlobalConfig = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(
+            back.projects["/tmp/demo"].allowed_tools,
+            vec!["bash".to_string()]
+        );
     }
 }

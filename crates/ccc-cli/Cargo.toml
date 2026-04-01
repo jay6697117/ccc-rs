@@ -1,0 +1,20 @@
+[package]
+name = "ccc-cli"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = { workspace = true }
+clap = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+reqwest = "0.12"
+ccc-auth = { path = "../ccc-auth" }
+ccc-agent = { path = "../ccc-agent" }
+ccc-core = { path = "../ccc-core" }
+ccc-telemetry = { path = "../ccc-telemetry" }
+ccc-tui = { path = "../ccc-tui" }
+
+[dev-dependencies]
+tempfile = { workspace = true }

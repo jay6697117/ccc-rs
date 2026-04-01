@@ -55,21 +55,21 @@ async fn handle_input_events(app: &mut App, key: event::KeyEvent) -> Result<()> 
                         app.input.clear();
                         app.cursor_pos = 0;
 
-                        let agent = Arc::clone(&app.agent);
+                        let runner = Arc::clone(&app.runner);
                         let messages = Arc::clone(&app.messages);
 
                         tokio::spawn(async move {
                             {
-                                let mut agent = agent.lock().await;
-                                let _ = agent
-                                    .run(input, |_event| {
+                                let mut runner = runner.lock().await;
+                                let _ = runner
+                                    .run_with_events(input, |_event| {
                                         // No-op closure
                                     })
                                     .await;
 
-                                // Sync messages from agent back to app
+                                // Sync messages from runner back to app
                                 let mut msgs = messages.lock().await;
-                                *msgs = agent.get_messages().clone();
+                                *msgs = runner.messages().clone();
                             }
                         });
                     }

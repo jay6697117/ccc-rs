@@ -18,10 +18,10 @@ ccc-rs/
 │   ├── ccc-api/                # Anthropic 多 provider 流式 HTTP 客户端
 │   ├── ccc-tools/              # 40 个 Tool 实现
 │   ├── ccc-mcp/                # MCP 协议 client + server（JSON-RPC over stdio/SSE）
-│   ├── ccc-agent/              # Agent 主循环（协调 API ↔ 工具 ↔ 对话历史）
-│   ├── ccc-tui/                # TUI 渲染（ratatui + crossterm）
-│   ├── ccc-telemetry/          # OpenTelemetry 适配层
-│   └── ccc-cli/                # 二进制入口，clap 命令树
+│   ├── ccc-agent/              # Agent 主循环与共享 SessionRunner
+│   ├── ccc-tui/                # TUI 渲染与交互入口（ratatui + crossterm）
+│   ├── ccc-telemetry/          # tracing/bootstrap 初始化层
+│   └── ccc-cli/                # 统一二进制入口，clap 命令树
 ├── docs/
 │   └── plans/                  # 实施计划文档
 └── claude-copy-code/           # 原 TS 源码（参考用）
@@ -31,11 +31,11 @@ ccc-rs/
 
 ```
 ccc-cli
-  └─ ccc-agent, ccc-tui, ccc-auth, ccc-mcp, ccc-telemetry
+  └─ ccc-agent, ccc-tui, ccc-auth, ccc-core, ccc-telemetry
        └─ ccc-agent
             └─ ccc-api, ccc-tools, ccc-mcp, ccc-core
        └─ ccc-tui
-            └─ ccc-vim, ccc-core
+            └─ ccc-agent, ccc-vim, ccc-core
        └─ ccc-auth
             └─ ccc-platform, ccc-core
        └─ ccc-api
@@ -66,7 +66,7 @@ ccc-vim       ──► ccc-core
 | Unicode 宽度 | `unicode-width` | `get-east-asian-width` |
 | ANSI 解析 | `anstyle-parse` | `@alcalzone/ansi-tokenize` |
 | 差量算法 | `similar` | `diff` |
-| OpenTelemetry | `opentelemetry` + `tracing-opentelemetry` | OTel JS SDK |
+| Telemetry bootstrap | `tracing` + `tracing-subscriber` | OTel / internal logging bootstrap |
 | 错误处理（bin）| `anyhow` | — |
 | 错误处理（lib）| `thiserror` | — |
 | JSON Schema | `schemars` | `zod` |
@@ -85,7 +85,12 @@ ccc-vim       ──► ccc-core
 | 5 | `ccc-mcp` | `2026-04-01-phase5-mcp.md` | MCP mock server |
 | 6 | `ccc-agent` | `2026-04-01-phase6-agent.md` | 端到端 mock |
 | 7 | `ccc-tui` | `2026-04-01-phase7-tui.md` | headless 渲染 |
-| 8 | `ccc-cli`, `ccc-telemetry` | `2026-04-01-phase8-cli.md` | 二进制集成测试 |
+| 8 | `ccc-vim` advanced | `2026-04-01-phase8-vim-advanced.md` | motion/operator tests |
+| 9 | `ccc-telemetry` | `2026-04-01-phase9-telemetry.md` | tracing bootstrap tests |
+| 10 | `ccc-cli` | `2026-04-01-phase10-cli.md` | clap parsing tests |
+| 11 | `ccc-core` refinement | `2026-04-01-phase11-core-refinement.md` | config loading tests |
+| 12 | TUI + Agent integration | `2026-04-01-phase12-integration.md` | workspace integration tests |
+| 13 | `ccc-cli`, `ccc-telemetry`, `ccc-agent`, `ccc-tui` | `docs/superpowers/specs/2026-04-01-phase13-cli-telemetry-design.md` | `cargo test`, `ccc --help`, `ccc config show` |
 
 ## TS → Rust 文件映射（关键路径）
 
@@ -109,7 +114,8 @@ ccc-vim       ──► ccc-core
 | `ccc-tools/src/file_read.rs` | `src/tools/FileReadTool/` |
 | `ccc-tools/src/file_edit.rs` | `src/tools/FileEditTool/` |
 | `ccc-mcp/src/client.rs` | `src/services/mcp/client.ts` |
-| `ccc-agent/src/loop.rs` | `src/coordinator/`, `src/QueryEngine.ts` |
+| `ccc-agent/src/lib.rs` | `src/coordinator/`, `src/QueryEngine.ts` |
+| `ccc-agent/src/runner.rs` | `src/query.ts`, `src/screens/REPL.tsx` |
 | `ccc-tui/src/app.rs` | `src/ink/ink.tsx`, `src/ink/root.ts` |
-| `ccc-tui/src/vim_input.rs` | `src/ink/hooks/use-input.ts` |
+| `ccc-tui/src/events.rs` | `src/ink/hooks/use-input.ts` |
 | `ccc-cli/src/main.rs` | `src/main.tsx` |

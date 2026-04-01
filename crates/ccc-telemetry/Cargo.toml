@@ -1,0 +1,9 @@
+[package]
+name = "ccc-telemetry"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+serde = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
