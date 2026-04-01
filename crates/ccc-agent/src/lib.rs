@@ -59,6 +59,21 @@ impl Agent {
         Ok(())
     }
 
+    pub async fn bootstrap_mcp_servers(
+        &mut self,
+        servers: &[(String, ccc_core::config::McpServerConfig)],
+    ) -> Result<Vec<(String, anyhow::Error)>> {
+        let mut failures = Vec::new();
+
+        for (name, config) in servers {
+            if let Err(err) = self.add_mcp_server(name, config).await {
+                failures.push((name.clone(), err));
+            }
+        }
+
+        Ok(failures)
+    }
+
     pub fn get_messages(&self) -> &Vec<Message> {
         &self.messages
     }
@@ -269,5 +284,18 @@ impl Agent {
         }
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn bootstrap_mcp_servers_skips_empty_input() {
+        let mut agent = Agent::new("claude-opus-4-6").unwrap();
+        let failures = agent.bootstrap_mcp_servers(&[]).await.unwrap();
+
+        assert!(failures.is_empty());
     }
 }
