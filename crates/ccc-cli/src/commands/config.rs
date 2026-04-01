@@ -17,7 +17,7 @@ pub struct ConfigPaths {
     pub project_local_settings_path: PathBuf,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct ConfigSnapshot {
     pub global: GlobalConfig,
     pub project: ProjectConfig,
@@ -86,6 +86,31 @@ pub fn load_config_snapshot(_paths: &ConfigPaths) -> Result<ConfigSnapshot, CliE
         project_local_settings: read_json_file(&project_local_settings_path)?,
         global_path,
     })
+}
+
+pub fn write_last_session_id(
+    paths: &ConfigPaths,
+    project_key: &str,
+    session_id: &ccc_core::SessionId,
+) -> Result<(), CliError> {
+    let mut snapshot = load_config_snapshot(paths)?;
+    snapshot
+        .global
+        .projects
+        .entry(project_key.to_string())
+        .or_default()
+        .last_session_id = Some(session_id.as_str().to_string());
+
+    if let Some(parent) = snapshot.global_path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+
+    fs::write(
+        &snapshot.global_path,
+        serde_json::to_string_pretty(&snapshot.global)?,
+    )?;
+
+    Ok(())
 }
 fn read_json_file(path: &Path) -> Result<Option<Value>, CliError> {
     if !path.exists() {
@@ -157,5 +182,32 @@ mod tests {
         let snapshot = load_config_snapshot(&paths).unwrap();
 
         assert_eq!(snapshot.project.allowed_tools, vec!["bash".to_string()]);
+    }
+
+    #[test]
+    fn writes_last_session_id_into_project_view() {
+        let temp = tempfile::tempdir().unwrap();
+        let global_path = temp.path().join("settings.json");
+        let project_key = normalize_project_key(temp.path());
+        let paths = ConfigPaths {
+            cwd: temp.path().to_path_buf(),
+            global_candidates: vec![global_path.clone()],
+            project_settings_path: temp.path().join(".claude/settings.json"),
+            project_local_settings_path: temp.path().join(".claude/settings.local.json"),
+        };
+
+        fs::write(&global_path, "{}").unwrap();
+
+        write_last_session_id(&paths, &project_key, &ccc_core::SessionId::new("sess-1")).unwrap();
+
+        let written: GlobalConfig =
+            serde_json::from_str(&fs::read_to_string(global_path).unwrap()).unwrap();
+        assert_eq!(
+            written
+                .projects
+                .get(&project_key)
+                .and_then(|project| project.last_session_id.as_deref()),
+            Some("sess-1")
+        );
     }
 }

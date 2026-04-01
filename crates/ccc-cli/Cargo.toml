@@ -15,6 +15,7 @@ ccc-agent = { path = "../ccc-agent" }
 ccc-core = { path = "../ccc-core" }
 ccc-telemetry = { path = "../ccc-telemetry" }
 ccc-tui = { path = "../ccc-tui" }
+tracing = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }

@@ -25,7 +25,7 @@ pub struct ChatRuntimeConfig {
 
 pub fn build_chat_runtime(
     args: ChatArgs,
-    snapshot: ConfigSnapshot,
+    snapshot: &ConfigSnapshot,
     cwd: PathBuf,
 ) -> Result<ChatRuntimeConfig, CliError> {
     Ok(ChatRuntimeConfig {
@@ -37,7 +37,7 @@ pub fn build_chat_runtime(
         } else {
             SessionMode::ResumeLast
         },
-        mcp_servers: select_mcp_servers(&snapshot),
+        mcp_servers: select_mcp_servers(snapshot),
     })
 }
 
@@ -106,7 +106,7 @@ mod tests {
                 print: false,
                 prompt: vec![],
             },
-            snapshot(ProjectConfig::default(), GlobalConfig::default()),
+            &snapshot(ProjectConfig::default(), GlobalConfig::default()),
             PathBuf::from("/tmp/project"),
         )
         .unwrap();
@@ -123,7 +123,7 @@ mod tests {
                 print: true,
                 prompt: vec![],
             },
-            snapshot(ProjectConfig::default(), GlobalConfig::default()),
+            &snapshot(ProjectConfig::default(), GlobalConfig::default()),
             PathBuf::from("/tmp/project"),
         )
         .unwrap();
@@ -158,7 +158,7 @@ mod tests {
                 print: false,
                 prompt: vec![],
             },
-            snapshot(project, global),
+            &snapshot(project, global),
             PathBuf::from("/tmp/project"),
         )
         .unwrap();

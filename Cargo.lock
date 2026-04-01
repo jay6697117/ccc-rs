@@ -305,6 +305,7 @@ dependencies = [
  "serde_json",
  "tempfile",
  "tokio",
+ "tracing",
 ]
 
 [[package]]
@@ -384,6 +385,7 @@ dependencies = [
  "futures",
  "ratatui",
  "tokio",
+ "tracing",
 ]
 
 [[package]]

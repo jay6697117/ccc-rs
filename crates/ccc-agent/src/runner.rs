@@ -1,6 +1,7 @@
 use anyhow::Result;
 use ccc_api::types::StreamEvent;
 use ccc_core::{
+    config::McpServerConfig,
     types::{ContentBlock, Message, Role},
     SessionId,
 };
@@ -69,6 +70,13 @@ impl SessionRunner {
             self.system_prompt.clone(),
             self.agent.get_messages().clone(),
         )
+    }
+
+    pub async fn bootstrap_mcp_servers(
+        &mut self,
+        servers: &[(String, McpServerConfig)],
+    ) -> Result<Vec<(String, anyhow::Error)>> {
+        self.agent.bootstrap_mcp_servers(servers).await
     }
 
     pub async fn run_with_events<F>(

@@ -3,6 +3,7 @@ use anyhow::Result;
 use ccc_vim::{transition, TransitionResult};
 use crossterm::event::{self, Event, KeyCode, KeyModifiers};
 use std::sync::Arc;
+use tracing::warn;
 
 pub async fn handle_events(app: &mut App) -> Result<()> {
     if event::poll(std::time::Duration::from_millis(50))? {
@@ -57,20 +58,33 @@ async fn handle_input_events(app: &mut App, key: event::KeyEvent) -> Result<()> 
 
                         let runner = Arc::clone(&app.runner);
                         let messages = Arc::clone(&app.messages);
+                        let session_store = app.session_store.clone();
 
                         tokio::spawn(async move {
-                            {
+                            let (updated_messages, snapshot) = {
                                 let mut runner = runner.lock().await;
-                                let _ = runner
+                                match runner
                                     .run_with_events(input, |_event| {
                                         // No-op closure
                                     })
-                                    .await;
+                                    .await
+                                {
+                                    Ok(_) => (runner.messages().clone(), Some(runner.snapshot())),
+                                    Err(error) => {
+                                        warn!(error = %error, "chat turn failed");
+                                        (runner.messages().clone(), None)
+                                    }
+                                }
+                            };
 
-                                // Sync messages from runner back to app
-                                let mut msgs = messages.lock().await;
-                                *msgs = runner.messages().clone();
+                            if let (Some(store), Some(snapshot)) = (session_store, snapshot) {
+                                if let Err(error) = store.save(&snapshot).await {
+                                    warn!(error = %error, "failed to persist session snapshot");
+                                }
                             }
+
+                            let mut msgs = messages.lock().await;
+                            *msgs = updated_messages;
                         });
                     }
                 }

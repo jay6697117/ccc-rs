@@ -81,7 +81,13 @@ impl SessionStore {
         let json = tokio::fs::read_to_string(&path)
             .await
             .with_context(|| format!("read persisted session {}", path.display()))?;
-        let session = serde_json::from_str(&json).context("parse persisted session JSON")?;
+        let session: PersistedSession =
+            serde_json::from_str(&json).context("parse persisted session JSON")?;
+        anyhow::ensure!(
+            session.version == SESSION_VERSION,
+            "unsupported persisted session version {}",
+            session.version
+        );
         Ok(Some(session))
     }
 
@@ -130,6 +136,38 @@ mod tests {
         let temp = tempfile::tempdir().unwrap();
         let store = SessionStore::new(temp.path().into());
 
-        assert!(store.load(&SessionId::new("missing")).await.unwrap().is_none());
+        assert!(store
+            .load(&SessionId::new("missing"))
+            .await
+            .unwrap()
+            .is_none());
+    }
+
+    #[tokio::test]
+    async fn incompatible_session_version_returns_error() {
+        let temp = tempfile::tempdir().unwrap();
+        let store = SessionStore::new(temp.path().into());
+        let path = store.session_path(&SessionId::new("sess-1"));
+
+        tokio::fs::create_dir_all(store.root()).await.unwrap();
+        tokio::fs::write(
+            &path,
+            serde_json::json!({
+                "version": 999,
+                "session_id": "sess-1",
+                "cwd": "/tmp/project",
+                "model": "claude-opus-4-6",
+                "system_prompt": null,
+                "messages": []
+            })
+            .to_string(),
+        )
+        .await
+        .unwrap();
+
+        let error = store.load(&SessionId::new("sess-1")).await.unwrap_err();
+        assert!(error
+            .to_string()
+            .contains("unsupported persisted session version"));
     }
 }
