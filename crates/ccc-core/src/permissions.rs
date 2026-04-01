@@ -25,11 +25,11 @@ pub enum PermissionMode {
 impl From<ExternalPermissionMode> for PermissionMode {
     fn from(m: ExternalPermissionMode) -> Self {
         match m {
-            ExternalPermissionMode::AcceptEdits      => Self::AcceptEdits,
+            ExternalPermissionMode::AcceptEdits => Self::AcceptEdits,
             ExternalPermissionMode::BypassPermissions => Self::BypassPermissions,
-            ExternalPermissionMode::Default          => Self::Default,
-            ExternalPermissionMode::DontAsk          => Self::DontAsk,
-            ExternalPermissionMode::Plan             => Self::Plan,
+            ExternalPermissionMode::Default => Self::Default,
+            ExternalPermissionMode::DontAsk => Self::DontAsk,
+            ExternalPermissionMode::Plan => Self::Plan,
         }
     }
 }

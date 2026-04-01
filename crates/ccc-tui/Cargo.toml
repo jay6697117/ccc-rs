@@ -1,0 +1,14 @@
+[package]
+name = "ccc-tui"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+ccc-core = { path = "../ccc-core" }
+ccc-agent = { path = "../ccc-agent" }
+ccc-vim = { path = "../ccc-vim" }
+ratatui = "0.26"
+crossterm = { version = "0.27", features = ["event-stream"] }
+tokio = { workspace = true }
+anyhow = { workspace = true }
+futures = "0.3"

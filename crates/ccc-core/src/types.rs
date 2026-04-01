@@ -10,13 +10,8 @@ pub enum Role {
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ImageSource {
-    Base64 {
-        media_type: String,
-        data: String,
-    },
-    Url {
-        url: String,
-    },
+    Base64 { media_type: String, data: String },
+    Url { url: String },
 }
 
 /// Corresponds to Anthropic Messages API `ContentBlock`.
@@ -68,9 +63,14 @@ mod tests {
 
     #[test]
     fn content_block_text_serde() {
-        let block = ContentBlock::Text { text: "hello".into() };
+        let block = ContentBlock::Text {
+            text: "hello".into(),
+        };
         let json = serde_json::to_string(&block).unwrap();
-        assert!(json.contains("\"type\":\"text\""), "missing type field: {json}");
+        assert!(
+            json.contains("\"type\":\"text\""),
+            "missing type field: {json}"
+        );
         let back: ContentBlock = serde_json::from_str(&json).unwrap();
         assert_eq!(block, back);
     }
@@ -91,7 +91,10 @@ mod tests {
     #[test]
     fn message_role_serde() {
         assert_eq!(serde_json::to_string(&Role::User).unwrap(), "\"user\"");
-        assert_eq!(serde_json::to_string(&Role::Assistant).unwrap(), "\"assistant\"");
+        assert_eq!(
+            serde_json::to_string(&Role::Assistant).unwrap(),
+            "\"assistant\""
+        );
     }
 
     #[test]
@@ -114,6 +117,9 @@ mod tests {
             is_error: None,
         };
         let json = serde_json::to_string(&block).unwrap();
-        assert!(!json.contains("is_error"), "is_error should be omitted when None");
+        assert!(
+            !json.contains("is_error"),
+            "is_error should be omitted when None"
+        );
     }
 }

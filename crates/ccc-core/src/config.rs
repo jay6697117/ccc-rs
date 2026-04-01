@@ -10,6 +10,15 @@ pub struct GlobalConfig {
     pub custom_api_key_responses: HashMap<String, String>,
     pub mcps_agreed_to_terms: bool,
     pub auto_updater_disabled: bool,
+    pub mcp_servers: HashMap<String, McpServerConfig>,
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct McpServerConfig {
+    pub command: String,
+    pub args: Vec<String>,
+    pub env: HashMap<String, String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
@@ -54,8 +63,14 @@ mod tests {
     fn project_config_optional_fields_omitted() {
         let cfg = ProjectConfig::default();
         let json = serde_json::to_string(&cfg).unwrap();
-        assert!(!json.contains("hasTrustDialogAccepted"), "should be omitted when None");
-        assert!(!json.contains("lastSessionId"), "should be omitted when None");
+        assert!(
+            !json.contains("hasTrustDialogAccepted"),
+            "should be omitted when None"
+        );
+        assert!(
+            !json.contains("lastSessionId"),
+            "should be omitted when None"
+        );
     }
 
     #[test]
