@@ -14,6 +14,10 @@ pub struct AgentTool;
 
 #[derive(Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[expect(
+    dead_code,
+    reason = "Agent tool input defines the accepted schema before spawning is implemented."
+)]
 struct Input {
     prompt: String,
     #[serde(default)]

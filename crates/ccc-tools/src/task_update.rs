@@ -18,20 +18,52 @@ pub struct TaskUpdateTool;
 struct Input {
     task_id: String,
     #[serde(default)]
+    #[expect(
+        dead_code,
+        reason = "Task persistence is not implemented yet, so only the task id is surfaced."
+    )]
     subject: Option<String>,
     #[serde(default)]
+    #[expect(
+        dead_code,
+        reason = "Task persistence is not implemented yet, so only the task id is surfaced."
+    )]
     description: Option<String>,
     #[serde(default)]
+    #[expect(
+        dead_code,
+        reason = "Task persistence is not implemented yet, so only the task id is surfaced."
+    )]
     active_form: Option<String>,
     #[serde(default)]
+    #[expect(
+        dead_code,
+        reason = "Task persistence is not implemented yet, so only the task id is surfaced."
+    )]
     status: Option<String>, // TODO: use TaskStatus enum
     #[serde(default)]
+    #[expect(
+        dead_code,
+        reason = "Task persistence is not implemented yet, so only the task id is surfaced."
+    )]
     add_blocks: Option<Vec<String>>,
     #[serde(default)]
+    #[expect(
+        dead_code,
+        reason = "Task persistence is not implemented yet, so only the task id is surfaced."
+    )]
     add_blocked_by: Option<Vec<String>>,
     #[serde(default)]
+    #[expect(
+        dead_code,
+        reason = "Task persistence is not implemented yet, so only the task id is surfaced."
+    )]
     owner: Option<String>,
     #[serde(default)]
+    #[expect(
+        dead_code,
+        reason = "Task persistence is not implemented yet, so only the task id is surfaced."
+    )]
     metadata: Option<HashMap<String, Value>>,
 }
 

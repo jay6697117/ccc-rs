@@ -17,10 +17,22 @@ pub struct TaskCreateTool;
 #[serde(rename_all = "camelCase")]
 struct Input {
     subject: String,
+    #[expect(
+        dead_code,
+        reason = "Task persistence is not implemented yet, so only the subject is surfaced."
+    )]
     description: String,
     #[serde(default)]
+    #[expect(
+        dead_code,
+        reason = "Task persistence is not implemented yet, so only the subject is surfaced."
+    )]
     active_form: Option<String>,
     #[serde(default)]
+    #[expect(
+        dead_code,
+        reason = "Task persistence is not implemented yet, so only the subject is surfaced."
+    )]
     metadata: Option<HashMap<String, Value>>,
 }
 

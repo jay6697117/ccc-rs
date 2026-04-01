@@ -28,6 +28,10 @@ struct Input {
     #[serde(default)]
     timeout: Option<u64>, // milliseconds
     #[serde(default)]
+    #[expect(
+        dead_code,
+        reason = "Descriptions are kept for UI display but the current CLI path does not surface them."
+    )]
     description: Option<String>,
 }
 

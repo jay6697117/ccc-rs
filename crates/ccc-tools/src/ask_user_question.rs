@@ -14,6 +14,10 @@ pub struct AskUserQuestionTool;
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[expect(
+    dead_code,
+    reason = "Question options are deserialized to validate the schema before UI prompting is implemented."
+)]
 struct OptionInput {
     label: String,
     #[serde(default)]
@@ -26,6 +30,10 @@ struct OptionInput {
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[expect(
+    dead_code,
+    reason = "Question payload fields are preserved for future interactive prompts."
+)]
 struct QuestionInput {
     text: String,
     #[serde(default)]

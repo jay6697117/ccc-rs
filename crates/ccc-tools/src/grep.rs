@@ -24,6 +24,10 @@ struct Input {
     #[serde(default)]
     path: Option<String>,
     #[serde(default)]
+    #[expect(
+        dead_code,
+        reason = "Glob filtering is part of the public input schema but not implemented yet."
+    )]
     glob: Option<String>,
 }
 
