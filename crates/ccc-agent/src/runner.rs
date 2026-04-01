@@ -1,8 +1,11 @@
 use anyhow::Result;
 use ccc_api::types::StreamEvent;
-use ccc_core::types::{ContentBlock, Message, Role};
+use ccc_core::{
+    types::{ContentBlock, Message, Role},
+    SessionId,
+};
 
-use crate::Agent;
+use crate::{session_store::PersistedSession, Agent};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RunSummary {
@@ -11,20 +14,61 @@ pub struct RunSummary {
 
 pub struct SessionRunner {
     agent: Agent,
+    session_id: Option<SessionId>,
+    cwd: String,
+    model: String,
+    system_prompt: Option<String>,
 }
 
 impl SessionRunner {
     pub fn new(model: impl Into<String>, system_prompt: Option<String>) -> Result<Self> {
-        let agent = match system_prompt {
-            Some(prompt) => Agent::new(model)?.with_system_prompt(prompt),
-            None => Agent::new(model)?,
+        let model = model.into();
+        let agent = match system_prompt.as_ref() {
+            Some(prompt) => Agent::new(model.clone())?.with_system_prompt(prompt),
+            None => Agent::new(model.clone())?,
         };
 
-        Ok(Self { agent })
+        Ok(Self {
+            agent,
+            session_id: None,
+            cwd: std::env::current_dir()?.to_string_lossy().into_owned(),
+            model,
+            system_prompt,
+        })
+    }
+
+    pub fn from_persisted_session(session: PersistedSession) -> Result<Self> {
+        let mut runner = Self::new(session.model.clone(), session.system_prompt.clone())?;
+        runner.session_id = Some(session.session_id);
+        runner.cwd = session.cwd;
+        runner.model = session.model;
+        runner.system_prompt = session.system_prompt;
+
+        for message in session.messages {
+            runner.agent.add_message(message);
+        }
+
+        Ok(runner)
     }
 
     pub fn messages(&self) -> &Vec<Message> {
         self.agent.get_messages()
+    }
+
+    pub fn session_id(&self) -> Option<&SessionId> {
+        self.session_id.as_ref()
+    }
+
+    pub fn snapshot(&self) -> PersistedSession {
+        PersistedSession::new(
+            self.session_id
+                .clone()
+                .unwrap_or_else(|| SessionId::new(uuid::Uuid::new_v4().to_string())),
+            self.cwd.clone(),
+            self.model.clone(),
+            self.system_prompt.clone(),
+            self.agent.get_messages().clone(),
+        )
     }
 
     pub async fn run_with_events<F>(
@@ -65,6 +109,8 @@ pub fn latest_assistant_text(messages: &[Message]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::session_store::PersistedSession;
+    use ccc_core::SessionId;
 
     #[test]
     fn latest_assistant_text_ignores_non_text_blocks() {
@@ -112,5 +158,26 @@ mod tests {
         ];
 
         assert_eq!(latest_assistant_text(&messages), "new");
+    }
+
+    #[test]
+    fn restores_runner_from_persisted_session() {
+        let session = PersistedSession::new(
+            SessionId::new("sess-1"),
+            "/tmp/project".into(),
+            "claude-opus-4-6".into(),
+            Some("system".into()),
+            vec![Message {
+                role: Role::Assistant,
+                content: vec![ContentBlock::Text {
+                    text: "hello".into(),
+                }],
+            }],
+        );
+
+        let runner = SessionRunner::from_persisted_session(session).unwrap();
+
+        assert_eq!(runner.session_id().map(|id| id.as_str()), Some("sess-1"));
+        assert_eq!(latest_assistant_text(runner.messages()), "hello");
     }
 }
