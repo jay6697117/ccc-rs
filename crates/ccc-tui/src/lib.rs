@@ -12,12 +12,12 @@ use terminal::{setup_terminal, TerminalGuard};
 use ui::render;
 
 pub async fn run_app(config: AppConfig) -> Result<()> {
-    let mcp_servers = config.mcp_servers.clone();
+    let mcp_bootstrap = config.mcp_bootstrap.clone();
     let mut terminal = setup_terminal()?;
     let _guard = TerminalGuard;
 
     let mut app = App::new(config)?;
-    app.bootstrap_mcp_servers(&mcp_servers).await?;
+    app.bootstrap_mcp_plan(&mcp_bootstrap).await?;
 
     loop {
         terminal.draw(|f| render(f, &app))?;

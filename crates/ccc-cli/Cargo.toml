@@ -10,6 +10,7 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 tokio = { workspace = true }
 reqwest = "0.12"
+sha2 = "0.10"
 ccc-auth = { path = "../ccc-auth" }
 ccc-api = { path = "../ccc-api" }
 ccc-agent = { path = "../ccc-agent" }

@@ -1,17 +1,19 @@
+pub mod mcp_registry;
 pub mod runner;
 pub mod session_store;
 
 use anyhow::Result;
 use ccc_api::types::{MessagesRequest, RequestMessage, StreamEvent};
 use ccc_api::AnthropicClient;
-use ccc_core::types::{ContentBlock, Message, Role};
-use ccc_mcp::client::McpClient;
+use ccc_core::{McpBootstrapPlan, McpConnectionSnapshot, types::{ContentBlock, Message, Role}};
+use ccc_mcp::{client::McpClient, connector::connect_server};
 use ccc_tools::types::ToolContext;
 use ccc_tools::ToolRegistry;
 use futures::StreamExt;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
+pub use mcp_registry::{McpBootstrapReport, McpConnectionRegistry};
 pub use runner::{latest_assistant_text, RunSummary, SessionRunner};
 
 /// Core agent for managing conversations and model interaction.
@@ -22,6 +24,7 @@ pub struct Agent {
     system_prompt: Option<String>,
     registry: Arc<ToolRegistry>,
     mcp_clients: Arc<Mutex<std::collections::HashMap<String, McpClient>>>,
+    mcp_connections: Arc<Mutex<McpConnectionRegistry>>,
 }
 
 impl Agent {
@@ -33,6 +36,7 @@ impl Agent {
             system_prompt: None,
             registry: Arc::new(ToolRegistry::new()),
             mcp_clients: Arc::new(Mutex::new(std::collections::HashMap::new())),
+            mcp_connections: Arc::new(Mutex::new(McpConnectionRegistry::default())),
         })
     }
 
@@ -50,12 +54,27 @@ impl Agent {
         name: &str,
         config: &ccc_core::config::McpServerConfig,
     ) -> Result<()> {
-        let mut client = McpClient::spawn(&config.command, &config.args, &config.env).await?;
+        let (command, args, env) = config.stdio_parts().ok_or_else(|| {
+            anyhow::anyhow!(
+                "transport {:?} is not supported yet",
+                config.transport_kind()
+            )
+        })?;
+        let mut client = McpClient::spawn(command, args, env).await?;
         client.initialize().await?;
         self.mcp_clients
             .lock()
             .await
             .insert(name.to_string(), client);
+        self.mcp_connections.lock().await.upsert(McpConnectionSnapshot {
+            name: name.into(),
+            transport: config.transport_kind(),
+            status: ccc_core::McpConnectionStatus::Connected,
+            reconnect_attempt: None,
+            max_reconnect_attempts: None,
+            error: None,
+            source_scope: ccc_core::McpSourceScope::Dynamic,
+        });
         Ok(())
     }
 
@@ -72,6 +91,33 @@ impl Agent {
         }
 
         Ok(failures)
+    }
+
+    pub async fn bootstrap_mcp_plan(&mut self, plan: &McpBootstrapPlan) -> Result<McpBootstrapReport> {
+        *self.mcp_connections.lock().await = McpConnectionRegistry::from_plan(plan);
+        self.mcp_clients.lock().await.clear();
+
+        for planned in &plan.planned {
+            let result = connect_server(
+                &planned.server.name,
+                planned.server.source_scope,
+                &planned.server.config,
+            )
+            .await;
+            if let Some(client) = result.client {
+                self.mcp_clients
+                    .lock()
+                    .await
+                    .insert(planned.server.name.clone(), client);
+            }
+            self.mcp_connections.lock().await.upsert(result.snapshot);
+        }
+
+        Ok(self.mcp_connections.lock().await.bootstrap_report(plan))
+    }
+
+    pub async fn mcp_connection_snapshots(&self) -> Vec<McpConnectionSnapshot> {
+        self.mcp_connections.lock().await.snapshots()
     }
 
     pub fn get_messages(&self) -> &Vec<Message> {
@@ -297,5 +343,42 @@ mod tests {
         let failures = agent.bootstrap_mcp_servers(&[]).await.unwrap();
 
         assert!(failures.is_empty());
+    }
+
+    #[tokio::test]
+    async fn bootstrap_mcp_plan_tracks_disabled_servers_in_registry() {
+        let mut agent = Agent::new("claude-opus-4-6").unwrap();
+        let report = agent
+            .bootstrap_mcp_plan(&McpBootstrapPlan {
+                planned: Vec::new(),
+                blocked: vec![ccc_core::BlockedMcpServer {
+                    server: ccc_core::ResolvedMcpServer {
+                        name: "blocked".into(),
+                        config: ccc_core::config::McpServerConfig::Stdio {
+                            command: "echo".into(),
+                            args: Vec::new(),
+                            env: std::collections::HashMap::new(),
+                        },
+                        source_scope: ccc_core::McpSourceScope::Global,
+                        source_label: "/tmp/settings.json".into(),
+                        plugin_source: None,
+                        dedup_signature: None,
+                        default_enabled: true,
+                    },
+                    decision: ccc_core::McpPolicyDecision {
+                        name: "blocked".into(),
+                        kind: ccc_core::McpPolicyDecisionKind::BlockedByAllowlist,
+                        message: "blocked by policy".into(),
+                    },
+                }],
+                warnings: Vec::new(),
+            })
+            .await
+            .unwrap();
+
+        assert!(report
+            .snapshots
+            .iter()
+            .any(|snapshot| snapshot.status == ccc_core::McpConnectionStatus::Disabled));
     }
 }

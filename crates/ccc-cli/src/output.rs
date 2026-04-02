@@ -1,7 +1,7 @@
 use std::io::Write;
 
 use ccc_api::types::{StreamEvent, Usage};
-use ccc_core::{Message, SessionId};
+use ccc_core::{McpConnectionSnapshot, Message, SessionId};
 use serde::Serialize;
 use uuid::Uuid;
 
@@ -97,7 +97,7 @@ pub struct SystemInitEvent {
     cwd: String,
     model: String,
     output_format: OutputFormat,
-    mcp_servers: Vec<McpServerStatus>,
+    mcp_servers: Vec<McpConnectionSnapshot>,
     uuid: String,
 }
 
@@ -107,7 +107,7 @@ impl SystemInitEvent {
         cwd: impl Into<String>,
         model: impl Into<String>,
         output_format: OutputFormat,
-        mcp_servers: Vec<McpServerStatus>,
+        mcp_servers: Vec<McpConnectionSnapshot>,
     ) -> Self {
         Self {
             kind: "system",
@@ -182,19 +182,6 @@ impl AssistantEvent {
             uuid: next_uuid(),
         }
     }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct McpServerStatus {
-    pub name: String,
-    pub status: McpServerState,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "lowercase")]
-pub enum McpServerState {
-    Connected,
-    Failed,
 }
 
 pub struct ProtocolWriter<'a, Stdout, Stderr>

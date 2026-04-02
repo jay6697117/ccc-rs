@@ -7,7 +7,13 @@ pub mod types;
 
 pub mod tasks;
 
-pub use config::{GlobalConfig, ProjectConfig, Theme};
+pub use config::{
+    BlockedMcpServer, GlobalConfig, McpBootstrapPlan, McpConnectionSnapshot,
+    McpConnectionStatus, McpControlAction, McpPolicyDecision, McpPolicyDecisionKind, McpServerConfig,
+    McpSourceScope, McpTransportKind, ManagedSettingsFreshness, ManagedSettingsSnapshot,
+    PlannedMcpServer, ProjectConfig, RemoteManagedEligibility, RemoteManagedSettingsCache,
+    ResolvedMcpServer, Theme,
+};
 pub use error::CccError;
 pub use ids::{AgentId, SessionId};
 pub use paths::{claude_config_dir, normalize_project_key};

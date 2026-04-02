@@ -4,10 +4,13 @@ use std::path::{Path, PathBuf};
 use serde::Serialize;
 use serde_json::Value;
 
-use ccc_core::{claude_config_dir, normalize_project_key, GlobalConfig, ProjectConfig};
+use ccc_core::{
+    ManagedSettingsSnapshot, claude_config_dir, normalize_project_key, GlobalConfig, ProjectConfig,
+};
 
 use crate::cli::{ConfigArgs, ConfigCommand};
 use crate::error::CliError;
+use crate::managed::{EnterpriseMcpSnapshot, load_enterprise_mcp_snapshot, load_managed_settings, managed_root};
 
 #[derive(Debug, Clone)]
 pub struct ConfigPaths {
@@ -15,15 +18,21 @@ pub struct ConfigPaths {
     pub global_candidates: Vec<PathBuf>,
     pub project_settings_path: PathBuf,
     pub project_local_settings_path: PathBuf,
+    pub managed_root: PathBuf,
 }
 
 #[derive(Debug, Clone, Serialize)]
 pub struct ConfigSnapshot {
     pub global: GlobalConfig,
+    pub global_settings: Option<Value>,
     pub project: ProjectConfig,
     pub project_settings: Option<Value>,
     pub project_local_settings: Option<Value>,
+    pub managed_settings: ManagedSettingsSnapshot,
+    pub enterprise_mcp: EnterpriseMcpSnapshot,
     pub global_path: PathBuf,
+    pub project_settings_path: PathBuf,
+    pub project_local_settings_path: PathBuf,
 }
 
 pub async fn run(args: ConfigArgs) -> Result<(), CliError> {
@@ -49,42 +58,54 @@ pub fn default_paths(cwd: PathBuf) -> ConfigPaths {
         ],
         project_settings_path: PathBuf::from(".claude/settings.json"),
         project_local_settings_path: PathBuf::from(".claude/settings.local.json"),
+        managed_root: managed_root(&config_dir),
     }
 }
 
-pub fn load_config_snapshot(_paths: &ConfigPaths) -> Result<ConfigSnapshot, CliError> {
-    let global_path = _paths
+pub fn load_config_snapshot(paths: &ConfigPaths) -> Result<ConfigSnapshot, CliError> {
+    let global_path = paths
         .global_candidates
         .iter()
         .find(|path| path.exists())
         .cloned()
-        .or_else(|| _paths.global_candidates.first().cloned())
+        .or_else(|| paths.global_candidates.first().cloned())
         .ok_or_else(|| CliError::new("no global config candidate paths configured", 1))?;
 
-    let global = if global_path.exists() {
+    let global_settings = if global_path.exists() {
         let text = fs::read_to_string(&global_path)?;
-        serde_json::from_str(&text)?
+        Some(serde_json::from_str::<Value>(&text)?)
     } else {
-        GlobalConfig::default()
+        None
+    };
+    let global = match &global_settings {
+        Some(raw) => serde_json::from_value(raw.clone())?,
+        None => GlobalConfig::default(),
     };
 
-    let project_key = normalize_project_key(&_paths.cwd);
+    let project_key = normalize_project_key(&paths.cwd);
     let project = global
         .projects
         .get(&project_key)
         .cloned()
         .unwrap_or_default();
 
-    let project_settings_path = resolve_path(&_paths.cwd, &_paths.project_settings_path);
+    let project_settings_path = resolve_path(&paths.cwd, &paths.project_settings_path);
     let project_local_settings_path =
-        resolve_path(&_paths.cwd, &_paths.project_local_settings_path);
+        resolve_path(&paths.cwd, &paths.project_local_settings_path);
+    let managed_settings = load_managed_settings(&paths.managed_root)?;
+    let enterprise_mcp = load_enterprise_mcp_snapshot(&paths.managed_root)?;
 
     Ok(ConfigSnapshot {
         global,
+        global_settings,
         project,
         project_settings: read_json_file(&project_settings_path)?,
         project_local_settings: read_json_file(&project_local_settings_path)?,
+        managed_settings,
+        enterprise_mcp,
         global_path,
+        project_settings_path,
+        project_local_settings_path,
     })
 }
 
@@ -142,6 +163,7 @@ mod tests {
             global_candidates: vec![temp.path().join("settings.json")],
             project_settings_path: temp.path().join(".claude/settings.json"),
             project_local_settings_path: temp.path().join(".claude/settings.local.json"),
+            managed_root: temp.path().join("managed"),
         };
 
         let snapshot = load_config_snapshot(&paths).unwrap();
@@ -149,8 +171,11 @@ mod tests {
         assert_eq!(snapshot.global.theme, Theme::Dark);
         assert!(snapshot.project.allowed_tools.is_empty());
         assert_eq!(snapshot.global_path, temp.path().join("settings.json"));
+        assert!(snapshot.global_settings.is_none());
         assert!(snapshot.project_settings.is_none());
         assert!(snapshot.project_local_settings.is_none());
+        assert_eq!(snapshot.managed_settings, ManagedSettingsSnapshot::missing());
+        assert!(snapshot.enterprise_mcp.servers.is_empty());
     }
 
     #[test]
@@ -177,11 +202,13 @@ mod tests {
             global_candidates: vec![global_path],
             project_settings_path: temp.path().join(".claude/settings.json"),
             project_local_settings_path: temp.path().join(".claude/settings.local.json"),
+            managed_root: temp.path().join("managed"),
         };
 
         let snapshot = load_config_snapshot(&paths).unwrap();
 
         assert_eq!(snapshot.project.allowed_tools, vec!["bash".to_string()]);
+        assert!(snapshot.global_settings.is_some());
     }
 
     #[test]
@@ -194,6 +221,7 @@ mod tests {
             global_candidates: vec![global_path.clone()],
             project_settings_path: temp.path().join(".claude/settings.json"),
             project_local_settings_path: temp.path().join(".claude/settings.local.json"),
+            managed_root: temp.path().join("managed"),
         };
 
         fs::write(&global_path, "{}").unwrap();

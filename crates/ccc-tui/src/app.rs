@@ -3,7 +3,7 @@ use ccc_agent::{
     session_store::{PersistedSession, SessionStore},
     SessionRunner,
 };
-use ccc_core::{config::McpServerConfig, types::Message, SessionId};
+use ccc_core::{McpBootstrapPlan, McpConnectionSnapshot, types::Message, SessionId};
 use ccc_vim::VimState;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -25,7 +25,7 @@ pub struct AppConfig {
     pub initial_messages: Vec<Message>,
     pub session_id: Option<SessionId>,
     pub cwd: String,
-    pub mcp_servers: Vec<(String, McpServerConfig)>,
+    pub mcp_bootstrap: McpBootstrapPlan,
     pub session_store: Option<SessionStore>,
 }
 
@@ -40,7 +40,7 @@ impl Default for AppConfig {
                 .unwrap_or_else(|_| ".".into())
                 .to_string_lossy()
                 .into_owned(),
-            mcp_servers: Vec::new(),
+            mcp_bootstrap: McpBootstrapPlan::default(),
             session_store: None,
         }
     }
@@ -55,6 +55,7 @@ pub struct App {
     pub vim_persistent: ccc_vim::types::PersistentState,
     pub should_quit: bool,
     pub runner: Arc<Mutex<SessionRunner>>,
+    pub mcp_connections: Arc<Mutex<Vec<McpConnectionSnapshot>>>,
     pub session_store: Option<SessionStore>,
 }
 
@@ -87,18 +88,24 @@ impl App {
             vim_persistent: ccc_vim::types::PersistentState::default(),
             should_quit: false,
             runner: Arc::new(Mutex::new(runner)),
+            mcp_connections: Arc::new(Mutex::new(Vec::new())),
             session_store: config.session_store,
         })
     }
 
-    pub async fn bootstrap_mcp_servers(&self, servers: &[(String, McpServerConfig)]) -> Result<()> {
-        let failures = {
+    pub async fn bootstrap_mcp_plan(&self, plan: &McpBootstrapPlan) -> Result<()> {
+        let report = {
             let mut runner = self.runner.lock().await;
-            runner.bootstrap_mcp_servers(servers).await?
+            runner.bootstrap_mcp_plan(plan).await?
         };
 
-        for (name, error) in failures {
-            warn!(server = %name, error = %error, "failed to bootstrap MCP server");
+        {
+            let mut snapshots = self.mcp_connections.lock().await;
+            *snapshots = report.snapshots.clone();
+        }
+
+        for warning in report.warnings {
+            warn!(warning = %warning, "MCP bootstrap warning");
         }
 
         Ok(())
@@ -119,7 +126,7 @@ mod tests {
             initial_messages: vec![],
             session_id: None,
             cwd: "/tmp/project".into(),
-            mcp_servers: vec![],
+            mcp_bootstrap: McpBootstrapPlan::default(),
             session_store: None,
         })
         .unwrap();
@@ -140,7 +147,7 @@ mod tests {
             }],
             session_id: Some(SessionId::new("sess-1")),
             cwd: "/tmp/project".into(),
-            mcp_servers: vec![],
+            mcp_bootstrap: McpBootstrapPlan::default(),
             session_store: None,
         })
         .unwrap();

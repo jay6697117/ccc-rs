@@ -1,7 +1,9 @@
 pub mod cli;
 pub mod commands;
 pub mod error;
+pub mod managed;
 pub mod output;
+pub mod plugins;
 pub mod runtime;
 pub mod stdin;
 

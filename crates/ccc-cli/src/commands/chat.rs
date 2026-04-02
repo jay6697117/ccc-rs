@@ -5,18 +5,16 @@ use crate::commands::config::{
     default_paths, load_config_snapshot, write_last_session_id, ConfigPaths, ConfigSnapshot,
 };
 use crate::error::{CliError, CliExit};
-use crate::output::{
-    McpServerState, McpServerStatus, ProtocolWriter, ResultContext, ResultEnvelope, SystemInitEvent,
-};
+use crate::output::{ProtocolWriter, ResultContext, ResultEnvelope, SystemInitEvent};
 use crate::runtime::{build_chat_runtime, ChatRuntimeConfig, SessionMode};
 use crate::stdin::{merge_prompt_and_stdin, read_stdin_if_piped};
 
 use ccc_agent::{
     session_store::{PersistedSession, SessionStore},
-    RunSummary, SessionRunner,
+    McpBootstrapReport, RunSummary, SessionRunner,
 };
 use ccc_api::types::StreamEvent;
-use ccc_core::{claude_config_dir, config::McpServerConfig, SessionId};
+use ccc_core::{McpBootstrapPlan, claude_config_dir, SessionId};
 use ccc_tui::AppConfig;
 use tracing::warn;
 
@@ -38,10 +36,10 @@ trait HeadlessChatBackend {
     fn session_id(&self) -> &SessionId;
     fn cwd(&self) -> &str;
     fn model(&self) -> &str;
-    fn bootstrap_mcp_servers<'a>(
+    fn bootstrap_mcp_plan<'a>(
         &'a mut self,
-        servers: &'a [(String, McpServerConfig)],
-    ) -> BoxFuture<'a, Result<Vec<(String, anyhow::Error)>, CliError>>;
+        plan: &'a McpBootstrapPlan,
+    ) -> BoxFuture<'a, Result<McpBootstrapReport, CliError>>;
     fn run<'a>(&'a mut self, input: String) -> BoxFuture<'a, Result<HeadlessRunOutput, CliError>>;
 }
 
@@ -72,13 +70,13 @@ impl HeadlessChatBackend for RunnerBackend {
         self.runner.model()
     }
 
-    fn bootstrap_mcp_servers<'a>(
+    fn bootstrap_mcp_plan<'a>(
         &'a mut self,
-        servers: &'a [(String, McpServerConfig)],
-    ) -> BoxFuture<'a, Result<Vec<(String, anyhow::Error)>, CliError>> {
+        plan: &'a McpBootstrapPlan,
+    ) -> BoxFuture<'a, Result<McpBootstrapReport, CliError>> {
         Box::pin(async move {
             self.runner
-                .bootstrap_mcp_servers(servers)
+                .bootstrap_mcp_plan(plan)
                 .await
                 .map_err(Into::into)
         })
@@ -167,7 +165,7 @@ async fn build_interactive_app_config(
         initial_messages: session.messages.clone(),
         session_id: Some(session.session_id),
         cwd: session.cwd,
-        mcp_servers: runtime.mcp_servers.clone(),
+        mcp_bootstrap: runtime.mcp_bootstrap.clone(),
         session_store: Some(store),
     })
 }
@@ -249,12 +247,8 @@ where
     Stderr: Write,
 {
     let mut protocol = ProtocolWriter::new(args.output_format, stdout, stderr);
-    let bootstrap_failures = backend.bootstrap_mcp_servers(&runtime.mcp_servers).await?;
-    let mcp_servers = build_mcp_server_statuses(&runtime.mcp_servers, &bootstrap_failures);
-    let warnings = bootstrap_failures
-        .iter()
-        .map(|(name, error)| render_mcp_warning(name, error))
-        .collect::<Vec<_>>();
+    let bootstrap_report = backend.bootstrap_mcp_plan(&runtime.mcp_bootstrap).await?;
+    let warnings = bootstrap_report.warnings.clone();
 
     if args.output_format == OutputFormat::StreamJson {
         protocol.emit_init(&SystemInitEvent::new(
@@ -262,7 +256,7 @@ where
             backend.cwd(),
             backend.model(),
             args.output_format,
-            mcp_servers,
+            bootstrap_report.snapshots.clone(),
         ))?;
     }
 
@@ -317,46 +311,18 @@ fn summary_context(summary: &RunSummary) -> ResultContext {
     }
 }
 
-fn build_mcp_server_statuses(
-    servers: &[(String, McpServerConfig)],
-    failures: &[(String, anyhow::Error)],
-) -> Vec<McpServerStatus> {
-    let failed_names = failures
-        .iter()
-        .map(|(name, _)| name.as_str())
-        .collect::<std::collections::HashSet<_>>();
-
-    servers
-        .iter()
-        .map(|(name, _)| McpServerStatus {
-            name: name.clone(),
-            status: if failed_names.contains(name.as_str()) {
-                McpServerState::Failed
-            } else {
-                McpServerState::Connected
-            },
-        })
-        .collect()
-}
-
-fn render_mcp_warning(name: &str, error: &anyhow::Error) -> String {
-    format!("failed to bootstrap MCP server: {name}: {error}")
-}
-
 #[cfg(test)]
 mod tests {
     use std::{future::Future, io::Cursor, pin::Pin};
 
-    use anyhow::anyhow;
-
     use std::fs;
 
     use ccc_agent::session_store::{PersistedSession, SessionStore};
-    use ccc_agent::RunSummary;
+    use ccc_agent::{McpBootstrapReport, RunSummary};
     use ccc_api::types::{MessageDeltaPayload, StreamEvent, Usage, UsageDelta};
     use ccc_core::{
-        config::McpServerConfig, ContentBlock, GlobalConfig, Message, ProjectConfig, Role,
-        SessionId,
+        ContentBlock, GlobalConfig, McpBootstrapPlan, McpConnectionSnapshot, McpConnectionStatus,
+        McpSourceScope, Message, ProjectConfig, Role, SessionId,
     };
 
     use crate::{
@@ -377,6 +343,7 @@ mod tests {
             global_candidates: vec![root.join("settings.json")],
             project_settings_path: root.join(".claude/settings.json"),
             project_local_settings_path: root.join(".claude/settings.local.json"),
+            managed_root: root.join("managed"),
         }
     }
 
@@ -401,6 +368,24 @@ mod tests {
         }
     }
 
+    fn sample_bootstrap_report(
+        status: McpConnectionStatus,
+        warnings: Vec<String>,
+    ) -> McpBootstrapReport {
+        McpBootstrapReport {
+            snapshots: vec![McpConnectionSnapshot {
+                name: "ok".into(),
+                transport: ccc_core::McpTransportKind::Stdio,
+                status,
+                reconnect_attempt: None,
+                max_reconnect_attempts: None,
+                error: None,
+                source_scope: McpSourceScope::Global,
+            }],
+            warnings,
+        }
+    }
+
     fn runtime(
         output_format: OutputFormat,
         include_partial_messages: bool,
@@ -419,14 +404,8 @@ mod tests {
                 system_prompt: None,
                 project_key: "project".into(),
                 session_mode: SessionMode::Ephemeral,
-                mcp_servers: vec![(
-                    "ok".into(),
-                    McpServerConfig {
-                        command: "echo".into(),
-                        args: vec!["ok".into()],
-                        env: Default::default(),
-                    },
-                )],
+                mcp_servers: vec![],
+                mcp_bootstrap: McpBootstrapPlan::default(),
             },
         )
     }
@@ -435,7 +414,7 @@ mod tests {
         session_id: SessionId,
         cwd: String,
         model: String,
-        bootstrap_failures: Vec<(String, anyhow::Error)>,
+        bootstrap_report: McpBootstrapReport,
         run_result: Option<Result<HeadlessRunOutput, CliError>>,
     }
 
@@ -452,13 +431,13 @@ mod tests {
             &self.model
         }
 
-        fn bootstrap_mcp_servers<'a>(
+        fn bootstrap_mcp_plan<'a>(
             &'a mut self,
-            _servers: &'a [(String, McpServerConfig)],
-        ) -> Pin<Box<dyn Future<Output = Result<Vec<(String, anyhow::Error)>, CliError>> + Send + 'a>>
+            _plan: &'a McpBootstrapPlan,
+        ) -> Pin<Box<dyn Future<Output = Result<McpBootstrapReport, CliError>> + Send + 'a>>
         {
-            let failures = std::mem::take(&mut self.bootstrap_failures);
-            Box::pin(async move { Ok(failures) })
+            let report = self.bootstrap_report.clone();
+            Box::pin(async move { Ok(report) })
         }
 
         fn run<'a>(
@@ -711,7 +690,7 @@ mod tests {
             session_id: SessionId::new("sess-print"),
             cwd: "/tmp/project".into(),
             model: "claude-opus-4-6".into(),
-            bootstrap_failures: Vec::new(),
+            bootstrap_report: sample_bootstrap_report(McpConnectionStatus::Connected, Vec::new()),
             run_result: Some(Ok(HeadlessRunOutput {
                 summary: sample_summary(),
                 stream_events: vec![StreamEvent::MessageDelta {
@@ -754,7 +733,7 @@ mod tests {
             session_id: SessionId::new("sess-print"),
             cwd: "/tmp/project".into(),
             model: "claude-opus-4-6".into(),
-            bootstrap_failures: Vec::new(),
+            bootstrap_report: sample_bootstrap_report(McpConnectionStatus::Connected, Vec::new()),
             run_result: Some(Err(CliError::new("boom", 1))),
         };
 
@@ -783,7 +762,10 @@ mod tests {
             session_id: SessionId::new("sess-print"),
             cwd: "/tmp/project".into(),
             model: "claude-opus-4-6".into(),
-            bootstrap_failures: vec![("ok".into(), anyhow!("boom"))],
+            bootstrap_report: sample_bootstrap_report(
+                McpConnectionStatus::Failed,
+                vec!["failed to bootstrap MCP server: ok: boom".into()],
+            ),
             run_result: Some(Ok(HeadlessRunOutput {
                 summary: sample_summary(),
                 stream_events: Vec::new(),
@@ -826,7 +808,7 @@ mod tests {
             session_id: SessionId::new("sess-print"),
             cwd: "/tmp/project".into(),
             model: "claude-opus-4-6".into(),
-            bootstrap_failures: Vec::new(),
+            bootstrap_report: sample_bootstrap_report(McpConnectionStatus::Connected, Vec::new()),
             run_result: Some(Err(CliError::new("boom", 1))),
         };
 
@@ -862,7 +844,10 @@ mod tests {
             session_id: SessionId::new("sess-print"),
             cwd: "/tmp/project".into(),
             model: "claude-opus-4-6".into(),
-            bootstrap_failures: vec![("ok".into(), anyhow!("boom"))],
+            bootstrap_report: sample_bootstrap_report(
+                McpConnectionStatus::Failed,
+                vec!["failed to bootstrap MCP server: ok: boom".into()],
+            ),
             run_result: Some(Ok(HeadlessRunOutput {
                 summary: sample_summary(),
                 stream_events: vec![StreamEvent::MessageDelta {
@@ -911,7 +896,7 @@ mod tests {
             session_id: SessionId::new("sess-print"),
             cwd: "/tmp/project".into(),
             model: "claude-opus-4-6".into(),
-            bootstrap_failures: Vec::new(),
+            bootstrap_report: sample_bootstrap_report(McpConnectionStatus::Connected, Vec::new()),
             run_result: Some(Ok(HeadlessRunOutput {
                 summary: sample_summary(),
                 stream_events: vec![StreamEvent::MessageDelta {

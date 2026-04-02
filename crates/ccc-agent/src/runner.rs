@@ -3,12 +3,12 @@ use std::time::Instant;
 use anyhow::Result;
 use ccc_api::types::{StreamEvent, Usage};
 use ccc_core::{
-    config::McpServerConfig,
+    McpBootstrapPlan, McpConnectionSnapshot,
     types::{ContentBlock, Message, Role},
     SessionId,
 };
 
-use crate::{session_store::PersistedSession, Agent};
+use crate::{session_store::PersistedSession, Agent, McpBootstrapReport};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct RunSummary {
@@ -90,11 +90,15 @@ impl SessionRunner {
         )
     }
 
-    pub async fn bootstrap_mcp_servers(
+    pub async fn bootstrap_mcp_plan(
         &mut self,
-        servers: &[(String, McpServerConfig)],
-    ) -> Result<Vec<(String, anyhow::Error)>> {
-        self.agent.bootstrap_mcp_servers(servers).await
+        plan: &McpBootstrapPlan,
+    ) -> Result<McpBootstrapReport> {
+        self.agent.bootstrap_mcp_plan(plan).await
+    }
+
+    pub async fn mcp_connection_snapshots(&self) -> Vec<McpConnectionSnapshot> {
+        self.agent.mcp_connection_snapshots().await
     }
 
     pub async fn run_with_events<F>(

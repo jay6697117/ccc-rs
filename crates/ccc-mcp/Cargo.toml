@@ -11,3 +11,6 @@ tokio = { workspace = true }
 async-trait = "0.1"
 jsonrpc-lite = "0.5"
 anyhow = { workspace = true }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
+tokio-tungstenite = { version = "0.24", features = ["rustls-tls-webpki-roots"] }
+http = "1"
